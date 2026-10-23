@@ -46,6 +46,8 @@ try {
     const stateFile = file.replace(/sessions([\\/])/, "hooks$1"); // estado del hook, aparte de la sesión
     let st = {};
     try { st = JSON.parse(fs.readFileSync(stateFile, "utf8")); } catch {}
+    // El estado es por proyecto: si ahora está en otra sala, el último mensaje visto no vale.
+    if (st.code !== s.code) st = { code: s.code };
     if (Date.now() - (st.at || 0) < TOOL_CHECK_MS) process.exit(0);
     st.at = Date.now();
     saveSession(stateFile, st);

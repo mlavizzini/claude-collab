@@ -45,7 +45,7 @@ async function settle(s, first) {
   if (!first.now && DEBOUNCE_MS) {
     await sleep(DEBOUNCE_MS);
     try { first = await sessionApi(s)("GET", "/unread"); } catch {}
-    if (!first.unread) return; // ya los leyó (por ejemplo, desde el hook): seguir esperando
+    if (!first.unread) return; // ya los leyó con collab_buzon mientras tanto: seguir esperando
   }
   arrived(s, first.unread, first.from);
 }

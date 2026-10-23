@@ -125,4 +125,11 @@ check(hook("mcp__plugin_collab_collab__collab_contexto") === null, "No se dispar
 const unread = await get(`${R}/unread`, a.token);
 check(unread.total >= 4, "Lo inyectado sigue sin leer en el buzón");
 
+// Cambiar de sala desde el mismo proyecto: el hook no arrastra el último mensaje visto de la anterior
+const a2 = await post("/rooms", { name: "otra", alias: "marce", agent: "claude" });
+fs.writeFileSync(path.join(home, ".claude-collab", "sessions", `${hash}.json`), JSON.stringify({ hub: HUB, code: a2.code, alias: "marce", token: a2.token }));
+const b2 = await post(`/rooms/${a2.code}/join`, { alias: "socio", agent: "codex", invite: a2.invite_path.split("#i=")[1] });
+await post(`/rooms/${a2.code}/messages`, { to: "marce", type: "pedido", body: "primer pedido en la sala nueva" }, b2.token);
+check(hook()?.additionalContext.includes("primer pedido en la sala nueva"), "Al cambiar de sala, el hook ve los primeros mensajes de la nueva");
+
 process.exit(fails ? 1 : 0);
