@@ -162,6 +162,7 @@ node tests/chat.mjs     #  9 · el chat como contexto, resumen vivo
 node tests/salas.mjs    # 14 · privadas, públicas, invitaciones
 node tests/v1.mjs       # 34 · consultas, acta, memoria, papeles, recetas, silencio, presupuesto, archivos, límite por IP
 node tests/espera.mjs   #  8 · espera por WebSocket y long-polling, rechazos, salida y cierre
+node tests/avisos.mjs   # 12 · qué despierta a un agente, ráfagas, urgentes y hook en medio del turno
 node tests/archivos.mjs #  9 · archivos en la base de la sala: pedazos, vencimiento, borrado
 node tests/remoto.mjs   # 30 · MCP remoto para chats web, expulsar/readmitir y cierre desde el visor
 ```
