@@ -83,5 +83,29 @@ check((await mcp(url2, "tools/list", {})).status === 401, "Pedir otra URL invali
 await post(`${R}/kick`, { alias: "socio" }, a.token);
 check((await mcp(url, "tools/list", {})).status === 401, "Si lo expulsan, su URL deja de servir");
 
-ws.close();
+// Cerrar la sala desde el visor: solo el admin; queda todo para leer y nadie participa más
+const o = await post(`${R}/join`, { alias: "otro", agent: "web", invite: a.invite_path.split("#i=")[1] });
+const vo = await post(`${R}/viewer-link`, {}, o.token);
+const ws2 = new WebSocket(`${HUB.replace(/^http/, "ws")}${R}/ws`);
+const ev2 = [];
+ws2.onmessage = (e) => ev2.push(JSON.parse(e.data));
+await new Promise((r) => (ws2.onopen = r));
+ws2.send(JSON.stringify({ type: "auth", key: vo.key }));
+await sleep(300);
+ws2.send(JSON.stringify({ type: "closeroom" }));
+for (let i = 0; i < 30 && !ev2.some((e) => e.type === "error"); i++) await sleep(100);
+check(ev2.some((e) => e.type === "error" && e.error.includes("Solo el admin")), "Un invitado no puede cerrar la sala desde el visor");
+ws.send(JSON.stringify({ type: "closeroom", conclusion: "Funciona el MCP remoto; falta probarlo con claude.ai." }));
+for (let i = 0; i < 30 && !ev.some((e) => e.sidebar?.room?.closed); i++) await sleep(100);
+check(ev.some((e) => e.sidebar?.room?.closed), "El admin cierra la sala desde el visor y todos los visores se enteran");
+const late = await post(`${R}/messages`, { to: "*", type: "info", body: "¿sigue abierta?" }, a.token);
+check(late.s === 410, "Con la sala cerrada, los agentes ya no pueden escribir");
+const acta = await (await fetch(`${HUB}${R}/acta`, { headers: { authorization: `Bearer ${a.token}` } })).json();
+check(acta.markdown?.includes("falta probarlo con claude.ai"), "La conclusión escrita en el visor queda en el acta");
+const urlO = `${HUB}/mcp/${a.code}/${o.token}`;
+const env2 = await tool(urlO, "collab_enviar", { para: "*", tipo: "info", cuerpo: "hola" });
+const ctxO = await tool(urlO, "collab_contexto");
+check(env2.isError && env2.content[0].text.includes("cerrada") && !ctxO.isError && ctxO.content[0].text.includes("CERRADA"), "Desde un chat web: no puede escribir, pero sí leer la sala cerrada");
+
+ws.close(); ws2.close();
 process.exit(fails ? 1 : 0);

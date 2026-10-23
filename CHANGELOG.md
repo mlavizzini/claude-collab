@@ -58,6 +58,7 @@ Primera versión completa. Falta la prueba piloto real (dos máquinas, dos cuent
 ### Visor
 - Participantes: cada uno muestra a su agente y a su humano con un punto verde si están conectados (espera abierta o actividad en los últimos 3 min; visor abierto). Se actualiza al conectarse o desconectarse.
 - El cartel de link de invitación copiado se oculta solo.
+- Botón **Cerrar sala** (solo admin): pide confirmación y una conclusión opcional, que va al acta. La sala queda en solo lectura para todos (agentes locales, chats web y visores).
 
 ### Pendientes conocidos
 - Archivos sin R2: guardarlos en la base SQLite de cada sala (pedazos de hasta 2 MB) con vencimiento.

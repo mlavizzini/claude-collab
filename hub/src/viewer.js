@@ -140,8 +140,11 @@ aside h2 { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; co
 .peer .avatar { width: 28px; height: 28px; font-size: 12px; border-radius: 8px; }
 .peer .info { min-width: 0; font-size: 13.5px; }
 .peer .who { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
-.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); margin-right: 5px; vertical-align: 1px; }
-.dot.on { background: var(--ok); }
+.who .dot { margin-right: 5px; vertical-align: 1px; }
+.closebox { display: none; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.closebox textarea { width: 100%; box-sizing: border-box; min-height: 64px; margin: 8px 0; font: inherit; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface, transparent); color: inherit; }
+.closebox .row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.btn.danger { border-color: var(--bad); color: var(--bad); }
 .peer .info .small { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); }
 .status.hecha { color: var(--ok); } .status.bloqueada, .status.rechazada { color: var(--bad); } .status.en_curso, .status.aceptada { color: var(--t-hallazgo); }
@@ -171,11 +174,18 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
   <button class="btn" id="silenceBtn" type="button" style="display:none" title="Silenciar">Silenciar</button>
   <button class="btn" id="inviteBtn" type="button" style="display:none">Invitar</button>
   <button class="btn" id="mcpBtn" type="button" style="display:none" title="Conectar claude.ai, ChatGPT u otro chat web a la sala como agente tuyo">Chat web</button>
+  <button class="btn danger" id="closeRoomBtn" type="button" style="display:none" title="Cerrar la sala: queda todo para leer, pero nadie puede participar más">Cerrar sala</button>
   <button class="btn" id="togglePanel" aria-controls="panel">Panel</button>
 </header>
 <div class="layout">
   <div class="col">
     <div class="banner" id="banner"></div>
+    <div class="closebox" id="closeBox">
+      <strong>¿Cerrar la sala?</strong>
+      <div class="small">Queda todo guardado para leer (chat, documento, acta), pero nadie puede escribir ni participar más. No se puede deshacer.</div>
+      <textarea id="closeConclusion" maxlength="20000" placeholder="Conclusión (opcional): qué se resolvió y qué queda pendiente. Va al acta."></textarea>
+      <div class="row"><button class="btn" id="closeCancel" type="button">Cancelar</button><button class="btn danger" id="closeConfirm" type="button">Cerrar la sala</button></div>
+    </div>
     <div class="focusbar" id="focusbar"><strong>Foco</strong><span id="focusText"></span><button class="btn" id="clearFocus" type="button">Quitar</button></div>
     <main id="chat" aria-live="polite"><div class="empty" id="empty">Cargando la conversación…</div></main>
     <footer>
@@ -338,6 +348,8 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
     $("roomCode").textContent = "· " + sb.room.code + " · " + (sb.room.visibility === "publica" ? "pública" : "privada");
     $("inviteBtn").style.display = me && me.admin && !sb.room.closed ? "" : "none";
     $("mcpBtn").style.display = me && !sb.room.closed ? "" : "none";
+    $("closeRoomBtn").style.display = me && me.admin && !sb.room.closed ? "" : "none";
+    if (sb.room.closed) $("closeBox").style.display = "none";
     if (sb.room.closed) banner("La sala fue cerrada por el admin. Podés seguir leyendo el historial.");
     const act = sb.peers.filter((p) => p.active);
     $("peers").innerHTML = sb.peers.map((p) =>
@@ -524,6 +536,13 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
   };
   $("inviteBtn").onclick = () => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "invite" })); };
   $("mcpBtn").onclick = () => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "mcplink" })); };
+  $("closeRoomBtn").onclick = () => { const b = $("closeBox"); b.style.display = b.style.display === "block" ? "none" : "block"; if (b.style.display === "block") $("closeConclusion").focus(); };
+  $("closeCancel").onclick = () => { $("closeBox").style.display = "none"; };
+  $("closeConfirm").onclick = () => {
+    if (!ws || ws.readyState !== 1) return banner("Sin conexión con la sala: probá de nuevo en un momento.");
+    ws.send(JSON.stringify({ type: "closeroom", conclusion: $("closeConclusion").value.trim() }));
+    $("closeBox").style.display = "none";
+  };
   $("downloadDoc").onclick =() => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "doc" })); };
   $("togglePanel").onclick = () => $("panel").classList.add("open");
   $("closePanel").onclick = () => $("panel").classList.remove("open");

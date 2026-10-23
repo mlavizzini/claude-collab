@@ -546,6 +546,21 @@ export class Room extends DurableObject {
 
     if (await handleViewerMessage(this, ws, att, msg)) return;
 
+    if (msg.type === "closeroom") {
+      if (att.alias !== s.admin) return ws.send(JSON.stringify({ type: "error", error: "Solo el admin cierra la sala" }));
+      if (s.closed) return;
+      const conclusion = String(msg.conclusion || "").trim().slice(0, 20000);
+      if (conclusion) {
+        s.conclusion = { text: conclusion, by: `${att.alias} (humano)`, at: new Date().toISOString() };
+        this.system(`${att.alias} escribió la conclusión de la sala.`);
+      }
+      s.closed = true;
+      this.system(`${att.alias} (humano) cerró la sala desde el visor.`);
+      this.syncDirectory();
+      await this.save();
+      return this.changed();
+    }
+
     if (msg.type === "mcplink") {
       s.mcpKeys ||= {};
       for (const [k, a] of Object.entries(s.mcpKeys)) if (a === att.alias) delete s.mcpKeys[k];
