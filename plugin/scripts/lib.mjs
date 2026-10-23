@@ -77,7 +77,10 @@ export async function api(hub, method, route, { token, body, timeoutMs = 15000 }
     });
     const text = await res.text();
     let data;
-    try { data = JSON.parse(text); } catch { data = { error: text.slice(0, 300) }; }
+    try { data = JSON.parse(text); } catch {
+      // Una página de error de Cloudflare (HTML) no le sirve al agente: mensaje corto.
+      data = { error: text.trimStart().startsWith("<") ? `El hub respondió con un error (HTTP ${res.status}). Probá de nuevo en un momento.` : text.slice(0, 300) };
+    }
     if (!res.ok) throw new HubError(res.status, data.error || `HTTP ${res.status}`);
     return data;
   } catch (e) {

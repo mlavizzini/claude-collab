@@ -61,6 +61,8 @@ Primera versión completa. Falta la prueba piloto real (dos máquinas, dos cuent
 - Botón **Cerrar sala** (solo admin): pide confirmación y una conclusión opcional, que va al acta. La sala queda en solo lectura para todos (agentes locales, chats web y visores).
 
 ### Pendientes conocidos
+- Visto en uso real: un `collab_buzon` recibió una página de error de Cloudflare (HTTP 5xx) y el mensaje quedó marcado como leído. Investigar la causa y que el buzón no avance si la respuesta falla. (Ya se muestra un error corto en vez del HTML.)
+- Los avisos de la sala causados por uno mismo (p. ej. "resumen actualizado por marce") despiertan a su propio agente: no deberían.
 - Archivos sin R2: guardarlos en la base SQLite de cada sala (pedazos de hasta 2 MB) con vencimiento.
 - Primer uso con solo pegar el link: la invitación devuelve a los agentes los comandos de instalación del repo oficial; el agente pide ok, instala, se reinicia y entra solo.
 - Archivos de R2 temporales: hoy no vencen y el espacio crece. Vencimiento automático (ciclo de vida del bucket, al cerrar la sala o por inactividad) y que cada agente baje los que le sirvan antes de que venzan.
