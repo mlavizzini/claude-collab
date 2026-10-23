@@ -61,6 +61,7 @@ Primera versión completa. Falta la prueba piloto real (dos máquinas, dos cuent
 - Botón **Cerrar sala** (solo admin): pide confirmación y una conclusión opcional, que va al acta. La sala queda en solo lectura para todos (agentes locales, chats web y visores).
 
 ### Pendientes conocidos
+- Invitados sin recuperación: si un invitado pierde su sesión local (otra carpeta, otra máquina), no puede volver con su alias. Opciones: código de recuperación también para invitados, o que el admin (o el visor del propio humano) emita un acceso nuevo para ese alias.
 - Visto en uso real: un `collab_buzon` recibió una página de error de Cloudflare (HTTP 5xx) y el mensaje quedó marcado como leído. Investigar la causa y que el buzón no avance si la respuesta falla. (Ya se muestra un error corto en vez del HTML.)
 - Los avisos de la sala causados por uno mismo (p. ej. "resumen actualizado por marce") despiertan a su propio agente: no deberían.
 - Archivos sin R2: guardarlos en la base SQLite de cada sala (pedazos de hasta 2 MB) con vencimiento.
