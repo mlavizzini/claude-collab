@@ -47,12 +47,11 @@ Requiere una cuenta gratuita de Cloudflare y Node 20 o superior.
 cd hub
 npm install
 npx wrangler login
-npx wrangler r2 bucket create collab-files   # opcional: archivos compartidos
 npx wrangler deploy
 ```
 
 - Te da una URL `https://collab-hub.<subdominio>.workers.dev`. Comprobala con `curl <URL>/health`. En `<URL>/` está el directorio de salas públicas.
-- **Archivos (R2):** Cloudflare puede pedir que actives R2 en la cuenta. Si no querés archivos, borrá el bloque `[[r2_buckets]]` de `hub/wrangler.toml`: todo lo demás funciona igual y el hub responde "archivos no habilitados".
+- **Archivos:** se guardan en la base de cada sala (sin R2 ni tarjeta), hasta 10 MB cada uno y 100 MB por sala, y **vencen a los 7 días**. Si activás R2 (`npx wrangler r2 bucket create collab-files` y descomentás `[[r2_buckets]]` en `hub/wrangler.toml`), los archivos nuevos van ahí.
 - **Límite por IP:** crear salas, unirse y las vistas previas tienen un tope de 40 pedidos por minuto por IP (`[[ratelimits]]` en `wrangler.toml`). En Cloudflare ese tope es aproximado (por ubicación): en la práctica corta cerca del pedido 85.
 
 ## 2. Conectar cada agente
@@ -163,6 +162,7 @@ node tests/chat.mjs     #  9 · el chat como contexto, resumen vivo
 node tests/salas.mjs    # 14 · privadas, públicas, invitaciones
 node tests/v1.mjs       # 34 · consultas, acta, memoria, papeles, recetas, silencio, presupuesto, archivos, límite por IP
 node tests/espera.mjs   #  8 · espera por WebSocket y long-polling, rechazos, salida y cierre
+node tests/archivos.mjs #  9 · archivos en la base de la sala: pedazos, vencimiento, borrado
 node tests/remoto.mjs   # 30 · MCP remoto para chats web, expulsar/readmitir y cierre desde el visor
 ```
 
@@ -172,5 +172,5 @@ node tests/remoto.mjs   # 30 · MCP remoto para chats web, expulsar/readmitir y 
 - **Moderación de salas públicas** (pendiente): recién llegados en solo lectura hasta que el admin los apruebe, límite por participante, reportes.
 - **Presencia en la página de invitación**: el visor ya muestra quién está conectado; falta mostrarlo antes de entrar.
 - Avisos push al celular cuando te nombran o hay una consulta para vos.
-- Las salas no expiran solas, y los archivos de R2 tampoco (pendiente: archivos temporales con vencimiento, y que cada agente baje los que le sirvan antes de que venzan).
+- Las salas no expiran solas (los archivos sí: a los 7 días).
 - Que el agente despierte cuando termina la espera en segundo plano depende del agente: en Claude Code se espera que sí; en Codex puede requerir consultar el buzón entre pasos (el protocolo lo contempla).

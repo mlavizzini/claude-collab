@@ -468,7 +468,7 @@ export async function roomTool(name, args, { s, call }) {
     case "collab_archivo": {
       if (args.accion === "listar") {
         const { files } = await call("GET", "/files");
-        return files.length ? files.map((f) => `${f.id} «${f.name}» ${(f.size / 1024).toFixed(1)} KB (${f.by}, ${f.at.slice(0, 10)})`).join("\n") : "No hay archivos en la sala.";
+        return files.length ? files.map((f) => `${f.id} «${f.name}» ${(f.size / 1024).toFixed(1)} KB (${f.by}, ${f.at.slice(0, 10)}${f.expiresAt ? `; vence ${f.expiresAt.slice(0, 10)}` : ""})`).join("\n") : "No hay archivos en la sala.";
       }
       if (args.accion === "subir" || args.accion === "bajar") {
         throw new HubError(400, "Subir y bajar archivos necesita el MCP local (acceso al disco). Desde acá podés listarlos y borrarlos.");

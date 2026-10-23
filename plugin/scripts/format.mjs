@@ -58,8 +58,8 @@ export function formatContext(c, { recent = 15 } = {}) {
     for (const p of c.recentPolls) lines.push(`- ${p.id} «${p.question}» → ${p.result}`);
   }
   if (c.files?.length) {
-    lines.push("", `## Archivos de la sala (${c.files.length}; bajalos con collab_archivo)`);
-    for (const f of c.files.slice(-15)) lines.push(`- ${f.id} «${f.name}» (${f.by})`);
+    lines.push("", `## Archivos de la sala (${c.files.length}; vencen solos: si te sirven a futuro, bajalos con collab_archivo)`);
+    for (const f of c.files.slice(-15)) lines.push(`- ${f.id} «${f.name}» (${f.by}${f.expiresAt ? `, vence ${f.expiresAt.slice(0, 10)}` : ""})`);
   }
   if (c.conclusion) lines.push("", "## Conclusión", c.conclusion.text);
   if (c.doc?.length) {

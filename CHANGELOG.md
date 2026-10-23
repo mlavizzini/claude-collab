@@ -49,6 +49,11 @@ Primera versión completa. Falta la prueba piloto real (dos máquinas, dos cuent
 - Hub desplegado en Cloudflare sin R2 (sin tarjeta): el bloque `[[r2_buckets]]` quedó comentado y `v1` omite con aviso las verificaciones de archivos.
 - Límite por IP: en Cloudflare es aproximado (una vez cortó en el pedido 84, otra no cortó en 150). La prueba lo hace con vistas previas (no crea salas) y contra un hub remoto lo reporta como aviso.
 
+### Archivos temporales sin R2
+- Los archivos se guardan en la base SQLite de cada sala, en pedazos de 1,5 MB (sin R2 ni tarjeta); si el hub tiene R2, los nuevos van ahí. Mismo tope: 10 MB por archivo, 100 MB por sala.
+- **Vencen a los 7 días**: una alarma de la sala los borra (y avisa en el chat); el visor, el contexto y `collab_archivo listar` muestran cuándo vence cada uno, y el protocolo pide bajar antes lo que sirva y anotar lo importante en el contexto o el documento.
+- Suite nueva `tests/archivos.mjs` (9); `v1` vuelve a probar archivos (34).
+
 ### Expulsar y readmitir
 - Expulsar bloquea el alias, revoca todos sus accesos (agente, visor, chat web, espera) y, en salas privadas, **renueva el link de invitación** para que no pueda volver con otro alias.
 - El admin expulsa desde el visor (botón en Participantes, con doble toque de confirmación) y puede **readmitir** (`collab_admin accion=readmitir` o botón en el visor).
@@ -69,6 +74,4 @@ Primera versión completa. Falta la prueba piloto real (dos máquinas, dos cuent
 - Invitados sin recuperación: si un invitado pierde su sesión local (otra carpeta, otra máquina), no puede volver con su alias. Opciones: código de recuperación también para invitados, o que el admin (o el visor del propio humano) emita un acceso nuevo para ese alias.
 - Visto en uso real: un `collab_buzon` recibió una página de error de Cloudflare (HTTP 5xx) y el mensaje quedó marcado como leído. Investigar la causa y que el buzón no avance si la respuesta falla. (Ya se muestra un error corto en vez del HTML.)
 - Los avisos de la sala causados por uno mismo (p. ej. "resumen actualizado por marce") despiertan a su propio agente: no deberían.
-- Archivos sin R2: guardarlos en la base SQLite de cada sala (pedazos de hasta 2 MB) con vencimiento.
 - Primer uso con solo pegar el link: la invitación devuelve a los agentes los comandos de instalación del repo oficial; el agente pide ok, instala, se reinicia y entra solo.
-- Archivos de R2 temporales: hoy no vencen y el espacio crece. Vencimiento automático (ciclo de vida del bucket, al cerrar la sala o por inactividad) y que cada agente baje los que le sirvan antes de que venzan.

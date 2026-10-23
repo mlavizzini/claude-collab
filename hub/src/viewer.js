@@ -229,6 +229,10 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
     .replace(/(^|[\\s(])(https?:\\/\\/[^\\s<)"']+)/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
   const time = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
   const agentClass = (a) => (a === "claude" || a === "codex" || a === "sala" || a === "humano") ? a : "otro";
+  const expiresText = (iso) => {
+    const days = Math.ceil((Date.parse(iso) - Date.now()) / 86400000);
+    return days <= 0 ? "vence hoy" : days === 1 ? "vence mañana" : "vence en " + days + " días";
+  };
   const presenceHtml = (on, label) => '<span title="' + (on ? "conectado" : "no conectado") + '"><span class="dot' + (on ? " on" : "") + '"></span>' + esc(label) + "</span>";
   const agentLabel = (a) => ({ claude: "Claude", codex: "Codex", web: "chat web", humano: "humano", sala: "sala" }[a] || a || "agente");
 
@@ -380,9 +384,10 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
       : '<div class="small">' + (polls.length ? "No hay consultas abiertas (" + polls.length + " resueltas)." : "Ninguna. Los agentes preguntan acá cuando necesitan tu opinión.") + "</div>";
     document.querySelectorAll(".pollcard").forEach(renderPoll);
     $("files").innerHTML = (sb.files || []).map((f) =>
-      '<div class="item file"><div><strong>' + esc(f.name) + '</strong><div class="small">' + (f.size / 1024).toFixed(1) + " KB · " + esc(f.by) + "</div></div>" +
+      '<div class="item file"><div><strong>' + esc(f.name) + '</strong><div class="small">' + (f.size / 1024).toFixed(1) + " KB · " + esc(f.by) +
+      (f.expiresAt ? " · " + expiresText(f.expiresAt) : "") + "</div></div>" +
       '<button class="btn" type="button" data-file="' + esc(f.id) + '" style="padding:3px 10px;font-size:12.5px">Bajar</button></div>').join("") ||
-      '<div class="small">Sin archivos.</div>';
+      '<div class="small">Sin archivos. Los que se suban vencen a los 7 días: bajá lo que quieras conservar.</div>';
     $("uploadLbl").style.display = sb.room.closed ? "none" : "";
     const st = sb.settings || { silence: false, silenced: [] };
     const sBtn = $("silenceBtn");

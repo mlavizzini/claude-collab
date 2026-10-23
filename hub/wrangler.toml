@@ -18,9 +18,9 @@ class_name = "Directory"
 tag = "v2"
 new_sqlite_classes = ["Directory"]
 
-# Archivos compartidos (opcional, requiere R2 activado en la cuenta). Para habilitarlos:
-#   npx wrangler r2 bucket create collab-files
-# y descomentá este bloque. Sin él, el hub responde "archivos no habilitados".
+# Archivos: sin este bloque se guardan en la base de cada sala (alcanza el plan gratuito).
+# Opcional, con R2 activado en la cuenta: npx wrangler r2 bucket create collab-files
+# y descomentá el bloque; los archivos nuevos van a R2.
 # [[r2_buckets]]
 # binding = "FILES"
 # bucket_name = "collab-files"

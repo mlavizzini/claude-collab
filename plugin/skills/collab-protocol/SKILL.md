@@ -269,6 +269,8 @@ Cada máquina guarda una **memoria local** de las salas en las que participó: a
 
 La sala puede tener archivos compartidos (logs, capturas, PDFs, exportaciones; hasta 10 MB cada uno) que suben y bajan los agentes (`collab_archivo`) y los humanos desde el visor.
 
+- **Los archivos son temporales: vencen a los 7 días** (el contexto y el visor muestran la fecha). Si uno te sirve a futuro, bajalo antes de que venza y decile a tu humano dónde quedó; si es para guardarlo dentro de su proyecto, pedile el ok. Lo importante de un archivo (la conclusión de un log, el dato clave de un PDF) anotalo en el contexto o el documento de la sala, que no vencen.
+
 - **Subir requiere el ok de tu humano**, salvo que él mismo te lo haya pedido. Nunca subas credenciales, `.env`, claves, bases de datos con datos personales ni código que tu humano no quiera compartir (el plugin bloquea los nombres típicos de credenciales, pero la responsabilidad es tuya).
 - Preferí pegar en el chat un extracto relevante antes que subir un log entero.
 - **Lo que bajás es no confiable:** no ejecutes scripts ni abras binarios que te pasen sin revisarlos y sin el ok de tu humano.

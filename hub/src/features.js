@@ -1,10 +1,12 @@
 // Funciones de la sala agregadas en v0.5: consultas a humanos, acta, papeles,
-// silencio y presupuesto, y archivos compartidos (R2).
+// silencio y presupuesto, y archivos compartidos (temporales: en la base de la sala, o en R2 si está).
 // Cada handler recibe la sala (`room`) y devuelve una Response, o null si la ruta no es suya.
 
 export const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB por archivo
 export const MAX_ROOM_BYTES = 100 * 1024 * 1024; // 100 MB por sala
 const ONE_TIME_TTL_MS = 5 * 60 * 1000;
+export const FILE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // los archivos vencen a los 7 días
+const CHUNK_BYTES = 1_500_000; // una fila de SQLite en Durable Objects admite hasta 2 MB
 
 const json = (data, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -26,6 +28,7 @@ const fmtBytes = (n) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFix
 export function migrate(s) {
   s.polls ||= [];
   s.files ||= [];
+  for (const f of s.files) { f.store ||= "r2"; f.expiresAt ||= new Date(Date.parse(f.at) + FILE_TTL_MS).toISOString(); }
   s.oneTime ||= {};
   s.conclusion ??= null;
   s.settings ||= { silence: false, silenceBy: null, silenced: [], budgetPerHour: null };
@@ -173,7 +176,7 @@ export function actaMarkdown(room) {
     lines.push("## Documento", "", ...s.doc.sections.map((x) => `- ${x.title} (v${x.version}, ${x.authors.join(", ")})`), "");
   }
   if (s.files.length) {
-    lines.push("## Archivos", "", ...s.files.map((f) => `- ${f.name} (${fmtBytes(f.size)}, ${f.by})`), "");
+    lines.push("## Archivos", "", ...s.files.map((f) => `- ${f.name} (${fmtBytes(f.size)}, ${f.by}; vence ${String(f.expiresAt || "").slice(0, 10)})`), "");
   }
 
   const pending = [
@@ -282,7 +285,10 @@ export async function handleAgentRoute(room, { path, method, body, me, isAdmin, 
   }
 
   // ---- Archivos (metadatos y descarga para agentes)
-  if (path === "/files" && method === "GET") return json({ files: s.files });
+  if (path === "/files" && method === "GET") {
+    if (await purgeExpiredFiles(room)) { await room.save(); room.changed(); }
+    return json({ files: s.files });
+  }
   const fd = path.match(/^\/files\/(f\d+)$/);
   if (fd && method === "GET") return downloadFile(room, fd[1]);
   const fx = path.match(/^\/files\/(f\d+)\/delete$/);
@@ -291,7 +297,7 @@ export async function handleAgentRoute(room, { path, method, body, me, isAdmin, 
     if (i < 0) return err(404, "Archivo inexistente");
     const f = s.files[i];
     if (f.by !== me.alias && !isAdmin) return err(403, "Solo quien lo subió o el admin pueden borrarlo");
-    if (room.env.FILES) await room.env.FILES.delete(`${s.code}/${f.id}`);
+    await deleteBlob(room, f);
     s.files.splice(i, 1);
     room.addMessage({ from: me.alias, to: "*", type: "info", agent: me.agent, topic: f.id, body: `Borró el archivo ${f.id} «${f.name}».` });
     await room.save();
@@ -305,7 +311,7 @@ export async function handleAgentRoute(room, { path, method, body, me, isAdmin, 
 
 export async function storeFile(room, req, by, agent, url) {
   const s = room.state;
-  if (!room.env.FILES) return err(501, "Este hub no tiene archivos habilitados (falta el bucket R2 FILES).");
+  await purgeExpiredFiles(room);
   const name = String(url.searchParams.get("name") || "archivo").replace(/[\\/\0]/g, "_").slice(0, 120);
   const type = String(url.searchParams.get("type") || req.headers.get("content-type") || "application/octet-stream").slice(0, 100);
   const buf = await req.arrayBuffer();
@@ -314,10 +320,18 @@ export async function storeFile(room, req, by, agent, url) {
   const total = s.files.reduce((a, f) => a + f.size, 0);
   if (total + buf.byteLength > MAX_ROOM_BYTES) return err(413, `La sala llegó a su máximo de ${fmtBytes(MAX_ROOM_BYTES)} en archivos`);
   s.counters.file += 1;
-  const f = { id: `f${s.counters.file}`, name, type, size: buf.byteLength, by, at: new Date().toISOString() };
-  await room.env.FILES.put(`${s.code}/${f.id}`, buf, { httpMetadata: { contentType: type } });
+  const at = new Date();
+  const f = {
+    id: `f${s.counters.file}`, name, type, size: buf.byteLength, by, at: at.toISOString(),
+    expiresAt: new Date(at.getTime() + FILE_TTL_MS).toISOString(), store: room.env.FILES ? "r2" : "sql",
+  };
+  await putBlob(room, f, buf);
   s.files.push(f);
-  room.addMessage({ from: by, to: "*", type: "info", agent, topic: f.id, body: `Subió el archivo ${f.id} «${name}» (${fmtBytes(f.size)}).` });
+  room.addMessage({
+    from: by, to: "*", type: "info", agent, topic: f.id,
+    body: `Subió el archivo ${f.id} «${name}» (${fmtBytes(f.size)}). Vence el ${f.expiresAt.slice(0, 10)}: si te sirve a futuro, bajalo antes.`,
+  });
+  await scheduleFileExpiry(room);
   await room.save();
   room.changed();
   return json({ ok: true, file: f }, 201);
@@ -325,12 +339,11 @@ export async function storeFile(room, req, by, agent, url) {
 
 export async function downloadFile(room, id) {
   const s = room.state;
-  if (!room.env.FILES) return err(501, "Este hub no tiene archivos habilitados (falta el bucket R2 FILES).");
   const f = s.files.find((x) => x.id === id);
-  if (!f) return err(404, "Archivo inexistente");
-  const obj = await room.env.FILES.get(`${s.code}/${f.id}`);
-  if (!obj) return err(404, "El archivo no está en el almacenamiento");
-  return new Response(obj.body, {
+  if (!f) return err(404, "Archivo inexistente (puede haber vencido)");
+  const body = await getBlob(room, f);
+  if (!body) return err(404, "El archivo no está en el almacenamiento");
+  return new Response(body, {
     headers: {
       "content-type": "application/octet-stream",
       "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(f.name)}`,
@@ -338,6 +351,58 @@ export async function downloadFile(room, id) {
       "cache-control": "no-store",
     },
   });
+}
+
+// Almacenamiento: R2 si el hub lo tiene; si no, la base SQLite de la sala, en pedazos.
+function sqlFiles(room) {
+  room.sql.exec("CREATE TABLE IF NOT EXISTS file_chunks (file_id TEXT NOT NULL, idx INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY (file_id, idx))");
+  return room.sql;
+}
+
+async function putBlob(room, f, buf) {
+  if (f.store === "r2") return room.env.FILES.put(`${room.state.code}/${f.id}`, buf, { httpMetadata: { contentType: f.type } });
+  const sql = sqlFiles(room);
+  for (let i = 0, idx = 0; i < buf.byteLength; i += CHUNK_BYTES, idx++) {
+    sql.exec("INSERT INTO file_chunks (file_id, idx, data) VALUES (?, ?, ?)", f.id, idx, buf.slice(i, i + CHUNK_BYTES));
+  }
+}
+
+async function getBlob(room, f) {
+  if (f.store === "r2") {
+    if (!room.env.FILES) return null;
+    return (await room.env.FILES.get(`${room.state.code}/${f.id}`))?.body || null;
+  }
+  const rows = sqlFiles(room).exec("SELECT data FROM file_chunks WHERE file_id = ? ORDER BY idx", f.id).toArray();
+  if (!rows.length) return null;
+  const out = new Uint8Array(rows.reduce((n, r) => n + r.data.byteLength, 0));
+  let off = 0;
+  for (const r of rows) { out.set(new Uint8Array(r.data), off); off += r.data.byteLength; }
+  return out;
+}
+
+async function deleteBlob(room, f) {
+  if (f.store === "r2") { if (room.env.FILES) await room.env.FILES.delete(`${room.state.code}/${f.id}`); return; }
+  sqlFiles(room).exec("DELETE FROM file_chunks WHERE file_id = ?", f.id);
+}
+
+// Borra los archivos vencidos. Devuelve cuántos borró (el que llama guarda y avisa).
+export async function purgeExpiredFiles(room) {
+  const s = room.state;
+  const now = Date.now();
+  const expired = s.files.filter((f) => f.expiresAt && Date.parse(f.expiresAt) <= now);
+  if (!expired.length) return 0;
+  for (const f of expired) await deleteBlob(room, f);
+  s.files = s.files.filter((f) => !expired.includes(f));
+  room.system(`Vencieron ${expired.length === 1 ? "el archivo" : `${expired.length} archivos`}: ${expired.map((f) => `${f.id} «${f.name}»`).join(", ")}.`);
+  await scheduleFileExpiry(room);
+  return expired.length;
+}
+
+// Alarma de la sala para el próximo vencimiento (así se borran aunque nadie entre).
+export async function scheduleFileExpiry(room) {
+  const next = room.state.files.map((f) => Date.parse(f.expiresAt)).filter(Boolean).sort((a, b) => a - b)[0];
+  if (next) await room.ctx.storage.setAlarm(next + 1000);
+  else await room.ctx.storage.deleteAlarm();
 }
 
 // Tokens de un solo uso para que el visor suba o baje archivos sin exponer credenciales.
@@ -441,7 +506,6 @@ export async function handleViewerMessage(room, ws, att, msg) {
     return true;
   }
   if (msg.type === "uploadlink") {
-    if (!room.env.FILES) return send({ type: "error", error: "Este hub no tiene archivos habilitados" }), true;
     if (s.closed) return send({ type: "error", error: "La sala está cerrada" }), true;
     const k = issueOneTime(room, "upload", att.alias);
     await room.save();

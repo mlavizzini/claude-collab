@@ -7,6 +7,7 @@ import { handleMcp, CORS } from "./mcp.js";
 import {
   migrate, settingsView, pollView, gateAgentMessage, budgetUsage,
   handleAgentRoute, handleOneTimeRoute, handleViewerMessage, storeFile,
+  purgeExpiredFiles, scheduleFileExpiry,
 } from "./features.js";
 
 const html = (body) =>
@@ -642,6 +643,13 @@ export class Room extends DurableObject {
       await this.save();
       this.changed();
     }
+  }
+
+  // Alarma: borra los archivos vencidos y programa la próxima.
+  async alarm() {
+    if (!(await this.load())) return;
+    if (await purgeExpiredFiles(this)) { await this.save(); this.changed(); }
+    else await scheduleFileExpiry(this);
   }
 
   async webSocketClose(ws, code) {

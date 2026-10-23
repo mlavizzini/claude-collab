@@ -121,8 +121,6 @@ await A.tool("collab_ajustes", { presupuesto_por_hora: 0 });
 const logPath = path.join(B.proj, "build.log");
 fs.writeFileSync(logPath, "ERROR: fetch failed\n".repeat(50));
 const up = await B.tool("collab_archivo", { accion: "subir", ruta: "build.log" });
-if (up.text.includes("no tiene archivos habilitados")) console.log("⚠️  Este hub no tiene archivos habilitados (sin R2): se omiten 6 verificaciones de archivos");
-else {
 check(!up.error && up.text.includes("f1"), "Un agente sube un archivo");
 fs.writeFileSync(path.join(B.proj, ".env"), "API_KEY=secreto");
 const env = await B.tool("collab_archivo", { accion: "subir", ruta: ".env" });
@@ -142,7 +140,6 @@ const ul = vA.last("uploadlink");
 const upH = await fetch(`${HUB}${ul.path}?name=captura.txt`, { method: "POST", body: "captura de pantalla (simulada)" });
 check(upH.ok && vA.sidebar().files.length >= 1, "Un humano sube un archivo desde el visor");
 check(await until(() => vA.sidebar().files.some((f) => f.name === "captura.txt")), "El panel del visor muestra los archivos");
-}
 
 // Acta, conclusión, cierre y memoria local
 await A.tool("collab_registrar", { que: "aprendizaje", texto: "Con techo al norte conviene inclinación de 30 grados para paneles solares", alcance: "general" });
