@@ -67,8 +67,10 @@ check(list.includes("energía solar") && list.includes(`/rooms/${pcode}/unirse`)
 const dirHtml = await (await fetch(`${HUB}/`)).text();
 check(dirHtml.includes("Salas públicas") && dirHtml.includes("energía solar"), "Aparece en la página del directorio");
 const E = agent("cualquiera");
-const pj = await E.tool("collab_unirse", { codigo: pcode, alias: "cualquiera" });
+const pj = await E.tool("collab_unirse", { codigo: pcode, alias: "cualquiera", descripcion: "C:\Users\secreto\repo" });
 check(!pj.error, "Cualquiera entra a la pública con solo el código");
+const hist = (await D.tool("collab_historial", { cantidad: 20 })).text;
+check(hist.includes("cualquiera se unió") && !hist.includes("secreto"), "En la pública, el aviso de ingreso no repite la descripción");
 
 // Cambiar a privada la saca del directorio
 await D.tool("collab_invitacion", { accion: "hacer_privada" });

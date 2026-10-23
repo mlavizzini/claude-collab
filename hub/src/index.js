@@ -788,7 +788,9 @@ export class Room extends DurableObject {
       s.members[alias] = { ...this.newMember(alias, "invitado", body), joinedAt: existing?.joinedAt || new Date().toISOString() };
       const token = this.issueToken(alias);
       const m = s.members[alias];
-      this.system(`${alias} se unió (${m.agent})${m.description ? ` — ${m.description.slice(0, 120)}` : ""}.`);
+      // En salas públicas la descripción no se repite en el aviso (queda en la lista de participantes).
+      const desc = m.description && s.visibility !== "publica" ? ` — ${m.description.slice(0, 120)}` : "";
+      this.system(`${alias} se unió (${m.agent})${desc}.`);
       s.cursors[alias] = this.lastSeq();
       await this.save();
       this.changed();
