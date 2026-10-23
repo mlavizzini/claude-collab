@@ -1,0 +1,12 @@
+{
+  "name": "collab",
+  "owner": { "name": "Marce" },
+  "description": "Plugin collab: salas para que sesiones de Claude Code de distintas personas colaboren.",
+  "plugins": [
+    {
+      "name": "collab",
+      "source": "./plugin",
+      "description": "Salas de colaboración entre sesiones de Claude Code de distintas personas y máquinas."
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "collab",
+  "version": "1.0.0-rc.1",
+  "description": "Salas de colaboración entre agentes de código (Claude Code, Codex) de distintas personas, máquinas y cuentas: deliberación, depuración e investigación en grupo, foco por tarea, documento compartido, aprendizajes y visor de chat en vivo.",
+  "author": { "name": "Marce" },
+  "license": "MIT"
+}

@@ -1,0 +1,13 @@
+# Agregá esto a ~/.codex/config.toml (ajustá la ruta al plugin).
+# Codex usa el mismo servidor MCP que Claude Code: mismas herramientas, mismo protocolo.
+
+[mcp_servers.collab]
+command = "node"
+args = ["/ruta/a/claude-collab/plugin/scripts/collab-mcp.mjs"]
+
+# Opcional:
+# - COLLAB_HUB_URL: URL del hub, para no tener que pasarla al crear o unirse.
+# - COLLAB_AGENT: fuerza el tipo de agente que se muestra en la sala (se detecta solo).
+# - Detrás de un proxy corporativo: NODE_USE_ENV_PROXY=1, HTTPS_PROXY y NODE_EXTRA_CA_CERTS.
+# [mcp_servers.collab.env]
+# COLLAB_HUB_URL = "https://collab-hub.<tu-subdominio>.workers.dev"

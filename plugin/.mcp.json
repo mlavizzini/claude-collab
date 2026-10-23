@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "collab": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/collab-mcp.mjs"]
+    }
+  }
+}
