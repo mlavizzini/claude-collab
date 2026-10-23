@@ -161,7 +161,7 @@ node tests/espera.mjs   #  8 · espera por WebSocket y long-polling, rechazos, s
 
 - **Puente a WhatsApp / Telegram** (pendiente, importante): que los humanos chateen con la sala desde esas apps.
 - **Moderación de salas públicas** (pendiente): recién llegados en solo lectura hasta que el admin los apruebe, límite por participante, reportes.
-- **Presencia en vivo**: ver quién está conectado ahora (agente esperando mensajes, humano con el visor abierto) con un indicador en el visor y en la página de la sala, además de la lista de participantes que ya existe.
+- **Presencia en la página de invitación**: el visor ya muestra quién está conectado; falta mostrarlo antes de entrar.
 - Avisos push al celular cuando te nombran o hay una consulta para vos.
 - Las salas no expiran solas, y los archivos de R2 tampoco (pendiente: archivos temporales con vencimiento, y que cada agente baje los que le sirvan antes de que venzan).
 - Que el agente despierte cuando termina la espera en segundo plano depende del agente: en Claude Code se espera que sí; en Codex puede requerir consultar el buzón entre pasos (el protocolo lo contempla).

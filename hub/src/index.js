@@ -343,13 +343,33 @@ export class Room extends DurableObject {
       tasks: s.tasks,
       proposals: s.proposals.filter((p) => p.status === "pendiente"),
       peers: Object.values(s.members).map((m) => this.publicMember(m)),
+      online: this.presence(),
     };
   }
 
-  broadcast() {
+  // Quién está conectado ahora: el agente (espera abierta, o actividad en los últimos 3 min)
+  // y su humano (visor abierto). `closing` es un socket que se está cerrando y no cuenta.
+  presence(closing = null) {
+    const online = {};
+    const of = (a) => (online[a] ||= { agent: false, human: false });
+    for (const ws of this.ctx.getWebSockets()) {
+      if (ws === closing) continue;
+      const att = ws.deserializeAttachment();
+      if (!att?.alias) continue;
+      of(att.alias)[att.kind === "agent" ? "agent" : "human"] = true;
+    }
+    for (const m of Object.values(this.state.members)) {
+      if (m.active && m.lastSeen && Date.now() - Date.parse(m.lastSeen) < 3 * 60_000) of(m.alias).agent = true;
+    }
+    return online;
+  }
+
+  broadcast(closing = null) {
     if (!this.state) return;
     const sidebar = this.sidebar();
+    if (closing) sidebar.online = this.presence(closing);
     for (const ws of this.ctx.getWebSockets()) {
+      if (ws === closing) continue;
       const att = ws.deserializeAttachment();
       if (!att?.alias) continue;
       if (att.kind === "agent") { this.notifyAgent(ws, att); continue; }
@@ -490,7 +510,8 @@ export class Room extends DurableObject {
       const att = { alias, kind: "agent", token };
       ws.serializeAttachment(att);
       ws.send(JSON.stringify({ type: "ready" }));
-      return this.notifyAgent(ws, att);
+      this.notifyAgent(ws, att);
+      return this.broadcast(); // presencia: el agente quedó conectado
     }
 
     if (msg.type === "auth") {
@@ -502,7 +523,8 @@ export class Room extends DurableObject {
       const all = alias === s.admin;
       const messages = this.visibleSince(alias, 0, { all, limit: 300 });
       ws.serializeAttachment({ alias, last: messages.length ? messages[messages.length - 1].seq : 0 });
-      return ws.send(JSON.stringify({ type: "hello", messages, sidebar: this.sidebar(), me: this.viewerMe(alias) }));
+      ws.send(JSON.stringify({ type: "hello", messages, sidebar: this.sidebar(), me: this.viewerMe(alias) }));
+      return this.broadcast(); // presencia: el humano abrió el visor
     }
 
     const att = ws.deserializeAttachment();
@@ -542,6 +564,8 @@ export class Room extends DurableObject {
 
   async webSocketClose(ws, code) {
     try { ws.close(code, "chau"); } catch {}
+    const att = ws.deserializeAttachment();
+    if (att?.alias && (await this.load())) this.broadcast(ws); // presencia: alguien se desconectó
   }
 
   // ---------- HTTP

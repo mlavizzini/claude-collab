@@ -139,6 +139,9 @@ aside h2 { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; co
 .peer { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
 .peer .avatar { width: 28px; height: 28px; font-size: 12px; border-radius: 8px; }
 .peer .info { min-width: 0; font-size: 13.5px; }
+.peer .who { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); margin-right: 5px; vertical-align: 1px; }
+.dot.on { background: var(--ok); }
 .peer .info .small { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); }
 .status.hecha { color: var(--ok); } .status.bloqueada, .status.rechazada { color: var(--bad); } .status.en_curso, .status.aceptada { color: var(--t-hallazgo); }
@@ -213,6 +216,7 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
     .replace(/(^|[\\s(])(https?:\\/\\/[^\\s<)"']+)/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
   const time = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
   const agentClass = (a) => (a === "claude" || a === "codex" || a === "sala" || a === "humano") ? a : "otro";
+  const presenceHtml = (on, label) => '<span title="' + (on ? "conectado" : "no conectado") + '"><span class="dot' + (on ? " on" : "") + '"></span>' + esc(label) + "</span>";
   const agentLabel = (a) => ({ claude: "Claude", codex: "Codex", humano: "humano", sala: "sala" }[a] || a || "agente");
 
   let key = new URLSearchParams(location.hash.slice(1)).get("k");
@@ -336,9 +340,11 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
     const act = sb.peers.filter((p) => p.active);
     $("peers").innerHTML = sb.peers.map((p) =>
       '<div class="peer" style="opacity:' + (p.active ? 1 : .5) + '"><div class="avatar ' + agentClass(p.agent) + '">' + esc(p.alias.slice(0, 2).toUpperCase()) + "</div>" +
-      '<div class="info"><div><strong>' + esc(p.alias) + "</strong> · " + esc(agentLabel(p.agent)) + (p.role === "admin" ? " · admin" : "") + (p.active ? "" : " · salió") +
+      '<div class="info"><div><strong>' + esc(p.alias) + "</strong>" + (p.role === "admin" ? " · admin" : "") + (p.active ? "" : " · salió") +
       (p.papel ? ' <span class="chip papel">' + esc(p.papel) + "</span>" : "") +
       (sb.settings && sb.settings.silenced.includes(p.alias) ? ' <span class="chip">silenciado</span>' : "") + "</div>" +
+      (p.active ? '<div class="who">' + presenceHtml(sb.online?.[p.alias]?.agent, "Agente (" + agentLabel(p.agent) + ")") +
+        presenceHtml(sb.online?.[p.alias]?.human, "Humano") + "</div>" : "") +
       '<div class="small">' + esc(p.description || "") + "</div></div></div>").join("") || '<div class="small">—</div>';
     $("brief").textContent = sb.brief || "Sin propósito definido todavía.";
     const polls = sb.polls || [];
