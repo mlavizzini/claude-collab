@@ -173,6 +173,7 @@ export class Room extends DurableObject {
       human INTEGER NOT NULL DEFAULT 0,
       agent TEXT
     )`);
+    try { this.sql.exec("ALTER TABLE messages ADD COLUMN urgent INTEGER NOT NULL DEFAULT 0"); } catch {}
   }
 
   // ---------- estado (lo chico va en un JSON; los mensajes en SQL)
@@ -263,6 +264,7 @@ export class Room extends DurableObject {
     return {
       seq: r.seq, id: `m${r.seq}`, at: r.at, from: r.from_alias, to: r.to_alias, type: r.type,
       body: r.body, topic: r.topic, reply_to: r.reply_to, human: !!r.human, agent: r.agent,
+      ...(r.urgent ? { urgent: true } : {}),
     };
   }
 
@@ -270,18 +272,44 @@ export class Room extends DurableObject {
     return this.sql.exec("SELECT COALESCE(MAX(seq), 0) AS s FROM messages").one().s;
   }
 
-  addMessage({ from, to, type, body, topic, reply_to, human = false, agent = null }) {
+  addMessage({ from, to, type, body, topic, reply_to, human = false, agent = null, urgent = false }) {
     const at = new Date().toISOString();
     const r = this.sql.exec(
-      `INSERT INTO messages (at, from_alias, to_alias, type, body, topic, reply_to, human, agent)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
-      at, from, to, type, body, topic || null, reply_to || null, human ? 1 : 0, agent,
+      `INSERT INTO messages (at, from_alias, to_alias, type, body, topic, reply_to, human, agent, urgent)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+      at, from, to, type, body, topic || null, reply_to || null, human ? 1 : 0, agent, urgent ? 1 : 0,
     ).one();
     return this.row(r);
   }
 
-  system(body) {
-    return this.addMessage({ from: "sala", to: "*", type: "info", body, agent: "sala" });
+  // Avisos automáticos. Los de pura información ("info": alguien se unió, resumen actualizado…) no
+  // despiertan a los agentes; los que cambian el trabajo ("aviso": propósito, foco, cierre…) sí.
+  system(body, type = "info") {
+    return this.addMessage({ from: "sala", to: "*", type, body, agent: "sala" });
+  }
+
+  // Lo que justifica despertar a un agente: todo lo no leído menos los avisos de pura información.
+  wakeFor(alias) {
+    return this.unreadFor(alias).filter((m) => !(m.from === "sala" && m.type === "info"));
+  }
+
+  // Resumen para la espera: cuántos, de quién y si hay que despertar ya (su humano o urgente)
+  // o se puede esperar unos segundos a que lleguen más (agrupar ráfagas).
+  wakeSummary(alias) {
+    const w = this.wakeFor(alias);
+    return {
+      unread: w.length,
+      from: [...new Set(w.map((m) => (m.human ? `${m.from} (humano)` : m.from)))],
+      now: w.some((m) => m.urgent || (m.human && m.from === alias)),
+    };
+  }
+
+  // Mensajes que merecen interrumpir a un agente en medio de una tarea (hook de Claude Code):
+  // de su humano, urgentes, dirigidos a él, o avisos que cambian el trabajo.
+  interruptsFor(alias, after = 0) {
+    return this.unreadFor(alias).filter((m) => m.seq > after && (
+      (m.human && m.from === alias) || m.urgent || (m.to === alias && m.from !== "sala") || (m.from === "sala" && m.type === "aviso")
+    ));
   }
 
   // No leídos para el agente `alias`: dirigidos a él o a todos, que no haya escrito él mismo
@@ -408,8 +436,8 @@ export class Room extends DurableObject {
         ws.send(JSON.stringify({ type: "error", status: 410, error: "La sala fue cerrada por el admin" }));
         return ws.close(4010, "sala cerrada");
       }
-      const unread = this.unreadFor(att.alias);
-      if (unread.length) ws.send(JSON.stringify({ type: "unread", unread: unread.length, from: [...new Set(unread.map((m) => (m.human ? `${m.from} (humano)` : m.from)))] }));
+      const w = this.wakeSummary(att.alias);
+      if (w.unread) ws.send(JSON.stringify({ type: "unread", ...w }));
     } catch {}
   }
 
@@ -464,7 +492,7 @@ export class Room extends DurableObject {
     this.closeSockets(alias, "Fuiste expulsado de la sala.");
     this.closeAgentSockets(alias);
     if (s.visibility === "privada") s.invite = randomToken(12);
-    this.system(`${alias} fue expulsado por el admin.${s.visibility === "privada" ? " El link de invitación se renovó: el anterior ya no sirve." : ""}`);
+    this.system(`${alias} fue expulsado por el admin.${s.visibility === "privada" ? " El link de invitación se renovó: el anterior ya no sirve." : ""}`, "aviso");
     this.syncDirectory();
     return null;
   }
@@ -601,7 +629,7 @@ export class Room extends DurableObject {
         this.system(`${att.alias} escribió la conclusión de la sala.`);
       }
       s.closed = true;
-      this.system(`${att.alias} (humano) cerró la sala desde el visor.`);
+      this.system(`${att.alias} (humano) cerró la sala desde el visor.`, "aviso");
       this.syncDirectory();
       await this.save();
       return this.changed();
@@ -859,18 +887,20 @@ export class Room extends DurableObject {
       if (to !== "*" && !s.members[to]?.active) return err(404, `No hay nadie activo con alias ${to}`);
       const gate = gateAgentMessage(this, me, to);
       if (gate) return gate;
-      const msg = this.addMessage({ from: me.alias, to, type, body: text, topic: body.topic, reply_to: body.reply_to, agent: me.agent });
+      const msg = this.addMessage({ from: me.alias, to, type, body: text, topic: body.topic, reply_to: body.reply_to, agent: me.agent, urgent: !!body.urgent });
       await this.save();
       this.changed();
       return json({ ok: true, message: msg }, 201);
     }
 
     if (path === "/unread" && method === "GET") {
-      const unread = this.unreadFor(me.alias);
-      return json({
-        unread: unread.length,
-        from: [...new Set(unread.map((m) => (m.human ? `${m.from} (humano)` : m.from)))],
-      });
+      return json({ ...this.wakeSummary(me.alias), total: this.unreadFor(me.alias).length });
+    }
+
+    if (path === "/interrupts" && method === "GET") {
+      const after = Number(url.searchParams.get("after")) || 0;
+      const messages = this.interruptsFor(me.alias, after).map((m) => ({ ...m, body: m.body.length > 600 ? `${m.body.slice(0, 600)}…` : m.body }));
+      return json({ messages, last: this.lastSeq() });
     }
 
     if (path === "/inbox" && method === "GET") {
@@ -882,7 +912,7 @@ export class Room extends DurableObject {
 
     if (path === "/wait" && method === "GET") {
       const timeout = Math.min(Math.max(Number(url.searchParams.get("timeout")) || 25, 1), MAX_WAIT_SECONDS);
-      const check = () => this.unreadFor(me.alias).length;
+      const check = () => this.wakeFor(me.alias).length;
       if (check() > 0) return json({ unread: check() });
       const n = await new Promise((resolve) => {
         let timer;
@@ -1160,7 +1190,7 @@ export class Room extends DurableObject {
         from: "sala", to: target.alias, type: "info", agent: "sala",
         body: `Ahora sos admin de la sala. Tu código de recuperación es: ${recovery} — mostráselo a tu usuario para que lo guarde.`,
       });
-      this.system(`${me.alias} transfirió el rol de admin a ${target.alias}.`);
+      this.system(`${me.alias} transfirió el rol de admin a ${target.alias}.`, "aviso");
       await this.save();
       this.changed();
       return json({ ok: true });
@@ -1168,7 +1198,7 @@ export class Room extends DurableObject {
 
     if (path === "/close" && method === "POST") {
       s.closed = true;
-      this.system("El admin cerró la sala.");
+      this.system("El admin cerró la sala.", "aviso");
       this.syncDirectory();
       await this.save();
       this.changed();
@@ -1182,13 +1212,13 @@ export class Room extends DurableObject {
     const s = this.state;
     if (!taskId) {
       s.focus = null;
-      this.system(`${by} quitó el foco: cada uno sigue con lo suyo.`);
+      this.system(`${by} quitó el foco: cada uno sigue con lo suyo.`, "aviso");
       return null;
     }
     const task = s.tasks.find((t) => t.id === taskId);
     if (!task) return `Tarea inexistente: ${taskId}`;
     s.focus = { task: task.id, title: task.title, by, at: new Date().toISOString() };
-    this.system(`Foco de la sala: ${task.id} — ${task.title} (lo puso ${by}). Todos colaboran en destrabarla.`);
+    this.system(`Foco de la sala: ${task.id} — ${task.title} (lo puso ${by}). Todos colaboran en destrabarla.`, "aviso");
     return null;
   }
 
@@ -1196,7 +1226,7 @@ export class Room extends DurableObject {
     const s = this.state;
     if (kind === "brief") {
       s.brief = text;
-      this.system(`Propósito actualizado (por ${by}):\n${text.slice(0, 1500)}${text.length > 1500 ? "…" : ""}`);
+      this.system(`Propósito actualizado (por ${by}):\n${text.slice(0, 1500)}${text.length > 1500 ? "…" : ""}`, "aviso");
       this.syncDirectory();
       return;
     }

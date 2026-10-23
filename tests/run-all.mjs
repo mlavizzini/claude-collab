@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 // v1 va última: su prueba del límite por IP agota el cupo de la IP local durante un minuto.
-const SUITES = ["e2e", "focus", "doc", "minimo", "chat", "salas", "espera", "remoto", "archivos", "v1"];
+const SUITES = ["e2e", "focus", "doc", "minimo", "chat", "salas", "espera", "avisos", "remoto", "archivos", "v1"];
 const HUB = (process.env.COLLAB_HUB_URL || "http://localhost:8787").replace(/\/+$/, "");
 const TIMEOUT_MS = 5 * 60 * 1000;
 

@@ -34,7 +34,7 @@ await inbox(a.token); await inbox(b.token);
 function wait(file, modo, max = 1) {
   return new Promise((res) => {
     const t0 = Date.now();
-    const p = spawn(process.execPath, [WAIT, "--session", file, "--modo", modo, "--max-minutes", String(max)]);
+    const p = spawn(process.execPath, [WAIT, "--session", file, "--modo", modo, "--max-minutes", String(max), "--debounce", "0"]);
     let out = "";
     p.stdout.on("data", (d) => (out += d)); p.stderr.on("data", (d) => (out += d));
     p.on("exit", (code) => res({ out, code, secs: (Date.now() - t0) / 1000 }));

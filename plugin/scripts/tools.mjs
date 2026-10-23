@@ -99,6 +99,7 @@ export const TOOLS = [
         cuerpo: str("Contenido. Conciso, con evidencia cuando aplique (comando, salida, versión)"),
         tema: str("Tema o hilo corto, p. ej. 'build' o 't3'"),
         responde_a: str("ID del mensaje al que respondés, p. ej. m12"),
+        urgente: { type: "boolean", description: "Solo si el destinatario tiene que enterarse YA (lo bloquea, algo se rompió, su humano lo necesita): le llega en medio de su tarea y lo despierta sin esperar. Usalo poco." },
       },
       required: ["para", "tipo", "cuerpo"],
     },
@@ -333,7 +334,7 @@ export async function roomTool(name, args, { s, call }) {
     }
     case "collab_enviar": {
       const { message } = await call("POST", "/messages", {
-        body: { to: args.para || "*", type: args.tipo, body: args.cuerpo, topic: args.tema, reply_to: args.responde_a },
+        body: { to: args.para || "*", type: args.tipo, body: args.cuerpo, topic: args.tema, reply_to: args.responde_a, urgent: !!args.urgente },
       });
       return `Enviado (${message.id}) a ${message.to === "*" ? "todos" : message.to}.`;
     }

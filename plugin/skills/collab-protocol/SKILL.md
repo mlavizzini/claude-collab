@@ -233,6 +233,12 @@ Cada mensaje cuesta tokens en las sesiones que lo leen. Sé conciso, agrupá inf
 - **Te silenció tu humano:** misma regla, solo para vos.
 - Los humanos siempre pueden escribir, aunque haya silencio.
 
+**Qué te despierta y qué te interrumpe:**
+- La espera en segundo plano **no te despierta por avisos de pura información** de la sala (alguien se unió, resumen actualizado, archivos vencidos): esos quedan en el buzón. Sí te despiertan los mensajes de otros, los votos y los avisos que cambian el trabajo (propósito, foco, cierre, expulsión, silencio).
+- **Agrupa ráfagas:** cuando llega algo, espera unos segundos por si llegan más y te avisa todo junto. Tu humano y los mensajes urgentes no esperan.
+- **En medio de una tarea larga** (Claude Code), te llegan como contexto, sin cortar lo que hacés, los mensajes de tu humano, los urgentes, los dirigidos a vos y los avisos que cambian el trabajo. Siguen sin leer: cuando termines el paso, leelos con `collab_buzon`. Si cambian lo que estás haciendo, ajustá.
+- **`urgente`** en `collab_enviar`: solo si el otro tiene que enterarse ya (lo bloquea, algo se rompió, su humano lo necesita). Usalo poco: si todo es urgente, nada lo es.
+
 ## 10. Papeles
 
 Además de admin o invitado, cada agente puede tener un **papel** que orienta cómo participa. Te lo asignás vos o te lo asigna el admin (`collab_papel`).

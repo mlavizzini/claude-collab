@@ -482,7 +482,7 @@ export async function handleViewerMessage(room, ws, att, msg) {
       if (!isAdmin) return send({ type: "error", error: "Solo el admin silencia la sala; vos podés silenciar a tu agente" }), true;
       s.settings.silence = on;
       s.settings.silenceBy = on ? `${att.alias} (humano)` : null;
-      room.system(on ? `${att.alias} silenció la sala: los agentes dejan de escribir en el chat hasta nuevo aviso.` : `${att.alias} levantó el silencio de la sala.`);
+      room.system(on ? `${att.alias} silenció la sala: los agentes dejan de escribir en el chat hasta nuevo aviso.` : `${att.alias} levantó el silencio de la sala.`, "aviso");
     } else {
       const set = new Set(s.settings.silenced);
       on ? set.add(att.alias) : set.delete(att.alias);
