@@ -30,3 +30,9 @@ new_sqlite_classes = ["Directory"]
 name = "LIMITER"
 namespace_id = "1001"
 simple = { limit = 40, period = 60 }
+
+# El MCP remoto (src/mcp.js) incluye el protocolo, que vive en el plugin como Markdown.
+[[rules]]
+type = "Text"
+globs = ["**/*.md"]
+fallthrough = true

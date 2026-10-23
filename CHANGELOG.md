@@ -49,6 +49,12 @@ Primera versión completa. Falta la prueba piloto real (dos máquinas, dos cuent
 - Hub desplegado en Cloudflare sin R2 (sin tarjeta): el bloque `[[r2_buckets]]` quedó comentado y `v1` omite con aviso las verificaciones de archivos.
 - Límite por IP: en Cloudflare es aproximado (una vez cortó en el pedido 84, otra no cortó en 150). La prueba lo hace con vistas previas (no crea salas) y contra un hub remoto lo reporta como aviso.
 
+### MCP remoto para chats web
+- El hub es también un servidor MCP (HTTP, `/mcp/<sala>/<clave>`): claude.ai, ChatGPT u otro chat con conectores MCP participan sin instalar nada.
+- Se entra desde la página de invitación ("Desde un chat web": alias → URL del conector + visor) o, para quien ya está, con el botón **Chat web** del visor (comparte el lugar con su agente local sin desconectarlo; `collab_salir` desde ahí se rechaza).
+- Mismas herramientas que el MCP local: las definiciones y la lógica común pasaron a `plugin/scripts/tools.mjs` y `format.mjs` (sin dependencias de Node), que usan el plugin y el hub. Fuera del modo web: crear/unirse/recuperar, salas públicas, memoria y subir/bajar archivos.
+- La URL se invalida al pedir otra, al salir o al ser expulsado. Suite nueva `tests/remoto.mjs` (19).
+
 ### Visor
 - Participantes: cada uno muestra a su agente y a su humano con un punto verde si están conectados (espera abierta o actividad en los últimos 3 min; visor abierto). Se actualiza al conectarse o desconectarse.
 - El cartel de link de invitación copiado se oculta solo.

@@ -170,6 +170,7 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
   </div>
   <button class="btn" id="silenceBtn" type="button" style="display:none" title="Silenciar">Silenciar</button>
   <button class="btn" id="inviteBtn" type="button" style="display:none">Invitar</button>
+  <button class="btn" id="mcpBtn" type="button" style="display:none" title="Conectar claude.ai, ChatGPT u otro chat web a la sala como agente tuyo">Chat web</button>
   <button class="btn" id="togglePanel" aria-controls="panel">Panel</button>
 </header>
 <div class="layout">
@@ -217,7 +218,7 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
   const time = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
   const agentClass = (a) => (a === "claude" || a === "codex" || a === "sala" || a === "humano") ? a : "otro";
   const presenceHtml = (on, label) => '<span title="' + (on ? "conectado" : "no conectado") + '"><span class="dot' + (on ? " on" : "") + '"></span>' + esc(label) + "</span>";
-  const agentLabel = (a) => ({ claude: "Claude", codex: "Codex", humano: "humano", sala: "sala" }[a] || a || "agente");
+  const agentLabel = (a) => ({ claude: "Claude", codex: "Codex", web: "chat web", humano: "humano", sala: "sala" }[a] || a || "agente");
 
   let key = new URLSearchParams(location.hash.slice(1)).get("k");
   try {
@@ -336,6 +337,7 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
     $("roomName").textContent = sb.room.name;
     $("roomCode").textContent = "· " + sb.room.code + " · " + (sb.room.visibility === "publica" ? "pública" : "privada");
     $("inviteBtn").style.display = me && me.admin && !sb.room.closed ? "" : "none";
+    $("mcpBtn").style.display = me && !sb.room.closed ? "" : "none";
     if (sb.room.closed) banner("La sala fue cerrada por el admin. Podés seguir leyendo el historial.");
     const act = sb.peers.filter((p) => p.active);
     $("peers").innerHTML = sb.peers.map((p) =>
@@ -447,6 +449,13 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
           .catch(() => banner("No se pudo subir el archivo."));
         return;
       }
+      if (data.type === "mcplink") {
+        const url = location.origin + data.path;
+        const help = "Pegala como conector MCP en tu chat web (en claude.ai: Configuración → Conectores → Agregar conector personalizado). Es personal: quien la tenga actúa como vos. La anterior dejó de servir. ";
+        (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject())
+          .then(() => banner("URL de conector copiada. " + help + url, 20000), () => banner("URL de conector: " + url + " — " + help));
+        return;
+      }
       if (data.type === "invite") {
         const link = location.origin + data.path;
         const done = () => banner("Link de invitación copiado. " + (data.visibility === "privada" ? "Es privado: pasáselo solo a quien quieras invitar." : "La sala es pública.") + " " + link, 8000);
@@ -514,6 +523,7 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
     ws.send(JSON.stringify({ type: "silence", scope: e.currentTarget.dataset.scope, on: e.currentTarget.dataset.on === "1" }));
   };
   $("inviteBtn").onclick = () => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "invite" })); };
+  $("mcpBtn").onclick = () => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "mcplink" })); };
   $("downloadDoc").onclick =() => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "doc" })); };
   $("togglePanel").onclick = () => $("panel").classList.add("open");
   $("closePanel").onclick = () => $("panel").classList.remove("open");

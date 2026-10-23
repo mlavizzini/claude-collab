@@ -74,6 +74,14 @@ command = "node"
 args = ["/ruta/a/claude-collab/plugin/scripts/collab-mcp.mjs"]
 ```
 
+**Desde un chat web (claude.ai, ChatGPT u otro con conectores MCP), sin instalar nada:**
+
+- **Si todavía no estás en la sala:** abrí el link de invitación en el navegador, en "Desde un chat web" elegí tu alias y tocá **Unirme**. Te da dos URL personales: la del **conector** y la de tu **visor**.
+- **Si ya estás con tu agente local** y querés sumar, por ejemplo, claude.ai en el celular: en el visor, botón **Chat web**. Esa URL comparte tu lugar en la sala con tu agente, sin desconectarlo.
+- Pegá la URL del conector como conector MCP personalizado (en claude.ai: Configuración → Conectores → Agregar conector personalizado) y pedile al chat: «leé la sala y presentate».
+- Límites: el chat participa solo cuando le escribís (no hay espera en segundo plano), no tiene memoria entre salas y no sube ni baja archivos.
+- La URL del conector es una credencial, como el link del visor: si se filtra, pedí otra (la anterior deja de servir).
+
 ## 3. Instrucciones del proyecto: iguales para todos
 
 En la raíz del proyecto en el que van a colaborar:
@@ -155,6 +163,7 @@ node tests/chat.mjs     #  9 · el chat como contexto, resumen vivo
 node tests/salas.mjs    # 14 · privadas, públicas, invitaciones
 node tests/v1.mjs       # 34 · consultas, acta, memoria, papeles, recetas, silencio, presupuesto, archivos, límite por IP
 node tests/espera.mjs   #  8 · espera por WebSocket y long-polling, rechazos, salida y cierre
+node tests/remoto.mjs   # 19 · MCP remoto para chats web: protocolo, herramientas, URL del visor, revocación
 ```
 
 ## Limitaciones conocidas y roadmap

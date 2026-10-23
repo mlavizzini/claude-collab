@@ -83,7 +83,7 @@ export function inviteHtml() {
     .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
     .then(({ ok, d }) => {
       if (!ok) { box.innerHTML = '<h1>Invitación no válida</h1><p class="lead error">' + esc(d.error || "No se pudo abrir la sala") + "</p>"; return; }
-      const agentName = (a) => ({ claude: "Claude", codex: "Codex" }[a] || a);
+      const agentName = (a) => ({ claude: "Claude", codex: "Codex", web: "chat web" }[a] || a);
       const cmdClaude = "/collab unirse " + link;
       const cmdCodex = "Unite a la sala collab " + link;
       box.innerHTML =
@@ -97,16 +97,47 @@ export function inviteHtml() {
         "<h3>Con Codex</h3><p class='muted'>Decile a Codex:</p>" +
         '<div class="cmd"><code id="c2"></code><button class="btn ghost" data-copy="c2">Copiar</button></div>' +
         '<p class="muted">Necesitás tener instalado el plugin collab (o configurado su MCP en Codex). Si no lo tenés, pedile las instrucciones a quien te invitó.' +
-        (d.visibility === "privada" ? " Este link es personal de la sala: no lo publiques." : "") + "</p>";
+        (d.visibility === "privada" ? " Este link es personal de la sala: no lo publiques." : "") + "</p>" +
+        "<h3>Desde un chat web (claude.ai, ChatGPT…)</h3><p class='muted'>Sin instalar nada: elegí tu alias y te damos una URL para agregar como conector. Tu chat participa cuando le escribís (no trabaja solo en segundo plano).</p>" +
+        '<div class="cmd"><input id="alias" placeholder="tu alias (ej. juan)" maxlength="32" style="flex:1;min-width:0;font:inherit;padding:6px 8px;border:1px solid var(--line, #ccc);border-radius:8px;background:transparent;color:inherit">' +
+        '<button class="btn" id="webJoin">Unirme</button></div><div id="webOut"></div>';
       document.getElementById("c1").textContent = cmdClaude;
       document.getElementById("c2").textContent = cmdCodex;
-      box.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => {
+      const base = location.pathname.replace(/\\/unirse$/, "");
+      document.getElementById("webJoin").addEventListener("click", async () => {
+        const out = document.getElementById("webOut");
+        const alias = document.getElementById("alias").value.trim();
+        if (!alias) { out.innerHTML = '<p class="error">Escribí un alias.</p>'; return; }
+        out.innerHTML = '<p class="muted">Entrando…</p>';
+        try {
+          const r = await fetch(base + "/join", { method: "POST", body: JSON.stringify({ alias, invite, agent: "web" }) });
+          const j = await r.json();
+          if (!r.ok) { out.innerHTML = '<p class="error">' + esc(j.error || "No se pudo entrar") + "</p>"; return; }
+          const v = await (await fetch(base + "/viewer-link", { method: "POST", headers: { authorization: "Bearer " + j.token }, body: "{}" })).json();
+          const mcpUrl = location.origin + "/mcp/" + j.code + "/" + j.token;
+          out.innerHTML =
+            '<p>Entraste como <strong>' + esc(j.alias) + "</strong>. Guardá estas dos URL: son personales y no se vuelven a mostrar.</p>" +
+            "<p class='muted'>1. URL del conector. Pegala como conector MCP en tu chat web (en claude.ai: Configuración → Conectores → Agregar conector personalizado).</p>" +
+            '<div class="cmd"><code id="c3"></code><button class="btn ghost" data-copy="c3">Copiar</button></div>' +
+            "<p class='muted'>2. Tu visor, para ver la charla en vivo y escribir como humano:</p>" +
+            '<div class="cmd"><code id="c4"></code><button class="btn ghost" data-copy="c4">Copiar</button></div>' +
+            "<p class='muted'>Después, en tu chat: «leé la sala y presentate». Para ponerte al día más adelante: «fijate qué hay nuevo en la sala».</p>";
+          document.getElementById("c3").textContent = mcpUrl;
+          document.getElementById("c4").textContent = location.origin + v.path;
+          bindCopy(out);
+          document.getElementById("webJoin").disabled = true;
+        } catch { out.innerHTML = '<p class="error">No se pudo conectar. Intentá de nuevo.</p>'; }
+      });
+      bindCopy(box);
+    })
+    .catch(() => { box.innerHTML = '<h1>No se pudo cargar</h1><p class="lead error">Revisá tu conexión e intentá de nuevo.</p>'; });
+  function bindCopy(root) {
+    root.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => {
         const t = document.getElementById(b.dataset.copy).textContent;
         (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(
           () => { b.textContent = "Copiado"; setTimeout(() => (b.textContent = "Copiar"), 1500); },
           () => { const r = document.createRange(); r.selectNodeContents(document.getElementById(b.dataset.copy)); const s = getSelection(); s.removeAllRanges(); s.addRange(r); });
-      }));
-    })
-    .catch(() => { box.innerHTML = '<h1>No se pudo cargar</h1><p class="lead error">Revisá tu conexión e intentá de nuevo.</p>'; });
+    }));
+  }
 })();`);
 }

@@ -3,6 +3,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { viewerHtml } from "./viewer.js";
 import { directoryHtml, inviteHtml } from "./pages.js";
+import { handleMcp, CORS } from "./mcp.js";
 import {
   migrate, settingsView, pollView, gateAgentMessage, budgetUsage,
   handleAgentRoute, handleOneTimeRoute, handleViewerMessage, storeFile,
@@ -105,6 +106,17 @@ export default {
         if (r.status !== 409) return r;
       }
       return err(500, "No se pudo generar un código de sala");
+    }
+
+    // MCP remoto: URL personal /mcp/<sala>/<clave> (la clave es la credencial, como el link del visor)
+    const mcp = url.pathname.match(/^\/mcp\/([a-z0-9-]{3,40})\/([a-f0-9]{16,128})\/?$/);
+    if (mcp) {
+      if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+      const headers = new Headers(req.headers);
+      headers.set("x-collab-key", mcp[2]);
+      headers.set("x-collab-origin", url.origin);
+      const stub = env.ROOM.get(env.ROOM.idFromName(mcp[1]));
+      return stub.fetch(new Request("https://room/mcp", { method: req.method, headers, body: req.body }));
     }
 
     const m = url.pathname.match(/^\/rooms\/([a-z0-9-]{3,40})(\/.*)$/);
@@ -421,7 +433,7 @@ export class Room extends DurableObject {
   auth(req) {
     const h = req.headers.get("authorization") || "";
     const token = h.startsWith("Bearer ") ? h.slice(7).trim() : "";
-    const alias = token && this.state.tokens[token];
+    const alias = token && (this.state.tokens[token] || this.state.mcpKeys?.[token]);
     if (!alias) return null;
     const member = this.state.members[alias];
     if (!member || !member.active) return null;
@@ -441,6 +453,7 @@ export class Room extends DurableObject {
     const s = this.state;
     for (const [t, a] of Object.entries(s.tokens)) if (a === alias) delete s.tokens[t];
     for (const [k, a] of Object.entries(s.viewers)) if (a === alias) delete s.viewers[k];
+    for (const [k, a] of Object.entries(s.mcpKeys || {})) if (a === alias) delete s.mcpKeys[k];
   }
 
   viewerMe(alias) {
@@ -533,6 +546,15 @@ export class Room extends DurableObject {
 
     if (await handleViewerMessage(this, ws, att, msg)) return;
 
+    if (msg.type === "mcplink") {
+      s.mcpKeys ||= {};
+      for (const [k, a] of Object.entries(s.mcpKeys)) if (a === att.alias) delete s.mcpKeys[k];
+      const key = randomToken();
+      s.mcpKeys[key] = att.alias;
+      await this.save();
+      return ws.send(JSON.stringify({ type: "mcplink", path: `/mcp/${s.code}/${key}` }));
+    }
+
     if (msg.type === "invite") {
       if (att.alias !== s.admin) return ws.send(JSON.stringify({ type: "error", error: "Solo el admin invita" }));
       return ws.send(JSON.stringify({ type: "invite", path: this.invitePath(), visibility: s.visibility }));
@@ -602,6 +624,8 @@ export class Room extends DurableObject {
         return storeFile(this, req, who.alias, who.agent, url);
       }
     }
+
+    if (path === "/mcp") return handleMcp(this, req, VERSION);
 
     const body = method === "POST" ? await readJson(req) : {};
     if (body === null) return err(400, "JSON inválido");

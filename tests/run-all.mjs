@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
-const SUITES = ["e2e", "focus", "doc", "minimo", "chat", "salas", "v1", "espera"];
+const SUITES = ["e2e", "focus", "doc", "minimo", "chat", "salas", "v1", "espera", "remoto"];
 const HUB = (process.env.COLLAB_HUB_URL || "http://localhost:8787").replace(/\/+$/, "");
 const TIMEOUT_MS = 5 * 60 * 1000;
 
