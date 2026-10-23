@@ -145,6 +145,8 @@ aside h2 { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; co
 .closebox textarea { width: 100%; box-sizing: border-box; min-height: 64px; margin: 8px 0; font: inherit; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface, transparent); color: inherit; }
 .closebox .row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .btn.danger { border-color: var(--bad); color: var(--bad); }
+.peer .opt { border: 1px solid var(--line); background: var(--bg); color: inherit; border-radius: 999px; padding: 2px 10px; font-size: 12px; cursor: pointer; margin-left: 4px; }
+.peer .opt.danger { border-color: var(--bad); color: var(--bad); }
 .peer .info .small { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); }
 .status.hecha { color: var(--ok); } .status.bloqueada, .status.rechazada { color: var(--bad); } .status.en_curso, .status.aceptada { color: var(--t-hallazgo); }
@@ -284,6 +286,15 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
     if (v && !v.disabled && ws && ws.readyState === 1) { ws.send(JSON.stringify({ type: "vote", poll: v.dataset.vote, option: Number(v.dataset.opt) })); return; }
     const c = e.target.closest("[data-closepoll]");
     if (c && ws && ws.readyState === 1) { ws.send(JSON.stringify({ type: "closepoll", poll: c.dataset.closepoll })); return; }
+    const k = e.target.closest("[data-kick]");
+    if (k && ws && ws.readyState === 1) {
+      // Dos toques: el primero pide confirmación (sin diálogos del navegador).
+      if (k.dataset.armed) ws.send(JSON.stringify({ type: "kick", alias: k.dataset.kick }));
+      else { k.dataset.armed = "1"; k.textContent = "¿Seguro? Expulsar"; k.classList.add("danger"); setTimeout(() => { if (k.isConnected) { delete k.dataset.armed; k.textContent = "Expulsar"; k.classList.remove("danger"); } }, 4000); }
+      return;
+    }
+    const u = e.target.closest("[data-unban]");
+    if (u && ws && ws.readyState === 1) { ws.send(JSON.stringify({ type: "unban", alias: u.dataset.unban })); return; }
     const f = e.target.closest("[data-file]");
     if (f && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "filelink", id: f.dataset.file }));
   });
@@ -354,9 +365,11 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
     const act = sb.peers.filter((p) => p.active);
     $("peers").innerHTML = sb.peers.map((p) =>
       '<div class="peer" style="opacity:' + (p.active ? 1 : .5) + '"><div class="avatar ' + agentClass(p.agent) + '">' + esc(p.alias.slice(0, 2).toUpperCase()) + "</div>" +
-      '<div class="info"><div><strong>' + esc(p.alias) + "</strong>" + (p.role === "admin" ? " · admin" : "") + (p.active ? "" : " · salió") +
+      '<div class="info"><div><strong>' + esc(p.alias) + "</strong>" + (p.role === "admin" ? " · admin" : "") + (p.active ? "" : (sb.banned || []).includes(p.alias) ? " · expulsado" : " · salió") +
       (p.papel ? ' <span class="chip papel">' + esc(p.papel) + "</span>" : "") +
-      (sb.settings && sb.settings.silenced.includes(p.alias) ? ' <span class="chip">silenciado</span>' : "") + "</div>" +
+      (sb.settings && sb.settings.silenced.includes(p.alias) ? ' <span class="chip">silenciado</span>' : "") +
+      (me && me.admin && !sb.room.closed && p.active && p.alias !== me.alias ? ' <button class="opt" data-kick="' + esc(p.alias) + '">Expulsar</button>' : "") +
+      (me && me.admin && !sb.room.closed && !p.active && (sb.banned || []).includes(p.alias) ? ' <button class="opt" data-unban="' + esc(p.alias) + '">Readmitir</button>' : "") + "</div>" +
       (p.active ? '<div class="who">' + presenceHtml(sb.online?.[p.alias]?.agent, "Agente (" + agentLabel(p.agent) + ")") +
         presenceHtml(sb.online?.[p.alias]?.human, "Humano") + "</div>" : "") +
       '<div class="small">' + esc(p.description || "") + "</div></div></div>").join("") || '<div class="small">—</div>';

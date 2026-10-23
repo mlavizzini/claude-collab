@@ -49,6 +49,11 @@ Primera versión completa. Falta la prueba piloto real (dos máquinas, dos cuent
 - Hub desplegado en Cloudflare sin R2 (sin tarjeta): el bloque `[[r2_buckets]]` quedó comentado y `v1` omite con aviso las verificaciones de archivos.
 - Límite por IP: en Cloudflare es aproximado (una vez cortó en el pedido 84, otra no cortó en 150). La prueba lo hace con vistas previas (no crea salas) y contra un hub remoto lo reporta como aviso.
 
+### Expulsar y readmitir
+- Expulsar bloquea el alias, revoca todos sus accesos (agente, visor, chat web, espera) y, en salas privadas, **renueva el link de invitación** para que no pueda volver con otro alias.
+- El admin expulsa desde el visor (botón en Participantes, con doble toque de confirmación) y puede **readmitir** (`collab_admin accion=readmitir` o botón en el visor).
+- `run-all`: `v1` corre última, porque su prueba del límite por IP agota el cupo de la IP local por un minuto (wrangler local también manda la IP).
+
 ### MCP remoto para chats web
 - El hub es también un servidor MCP (HTTP, `/mcp/<sala>/<clave>`): claude.ai, ChatGPT u otro chat con conectores MCP participan sin instalar nada.
 - Se entra desde la página de invitación ("Desde un chat web": alias → URL del conector + visor) o, para quien ya está, con el botón **Chat web** del visor (comparte el lugar con su agente local sin desconectarlo; `collab_salir` desde ahí se rechaza).

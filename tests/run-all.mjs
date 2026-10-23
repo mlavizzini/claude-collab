@@ -5,7 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
-const SUITES = ["e2e", "focus", "doc", "minimo", "chat", "salas", "v1", "espera", "remoto"];
+// v1 va última: su prueba del límite por IP agota el cupo de la IP local durante un minuto.
+const SUITES = ["e2e", "focus", "doc", "minimo", "chat", "salas", "espera", "remoto", "v1"];
 const HUB = (process.env.COLLAB_HUB_URL || "http://localhost:8787").replace(/\/+$/, "");
 const TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -83,5 +84,7 @@ for (const r of failedSuites) {
   if (r.bad.length) r.bad.forEach((l) => console.log(`  ${l}`));
   else { console.log(`  La suite terminó sin completar (código ${r.code}). Últimas líneas:`); r.tail.forEach((l) => console.log(`    ${l}`)); }
 }
-if (!local && failedSuites.some((r) => r.tail.some((l) => l.includes("429")))) console.log("\nAparecen 429: es el límite por IP. Probá con --pausa 90.");
+if (failedSuites.some((r) => r.tail.some((l) => l.includes("429") || l.includes("Demasiados pedidos")))) {
+  console.log("\nAparecen 429: es el límite por IP (v1 lo agota a propósito al final). Esperá un minuto o probá con --pausa 90.");
+}
 process.exit(failedSuites.length ? 1 : 0);

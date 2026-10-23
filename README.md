@@ -163,7 +163,7 @@ node tests/chat.mjs     #  9 · el chat como contexto, resumen vivo
 node tests/salas.mjs    # 14 · privadas, públicas, invitaciones
 node tests/v1.mjs       # 34 · consultas, acta, memoria, papeles, recetas, silencio, presupuesto, archivos, límite por IP
 node tests/espera.mjs   #  8 · espera por WebSocket y long-polling, rechazos, salida y cierre
-node tests/remoto.mjs   # 24 · MCP remoto para chats web (protocolo, herramientas, URL del visor, revocación) y cierre desde el visor
+node tests/remoto.mjs   # 31 · MCP remoto para chats web, expulsar/readmitir y cierre desde el visor
 ```
 
 ## Limitaciones conocidas y roadmap

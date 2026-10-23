@@ -200,12 +200,12 @@ export const TOOLS = [
   },
   {
     name: "collab_admin",
-    description: "Solo admin: expulsar a alguien, transferir el rol de admin o cerrar la sala.",
+    description: "Solo admin: expulsar a alguien (bloquea su alias, revoca sus accesos y, en salas privadas, renueva el link de invitación), readmitir un alias expulsado, transferir el rol de admin o cerrar la sala.",
     inputSchema: {
       type: "object",
       properties: {
-        accion: { type: "string", enum: ["expulsar", "transferir", "cerrar"] },
-        alias: str("Alias afectado (expulsar/transferir)"),
+        accion: { type: "string", enum: ["expulsar", "readmitir", "transferir", "cerrar"] },
+        alias: str("Alias afectado (expulsar/readmitir/transferir)"),
         conclusion: str("Para cerrar: conclusión final de la sala (qué se logró, decisiones clave, qué quedó pendiente). Va al acta"),
       },
       required: ["accion"],
@@ -482,14 +482,17 @@ export async function roomTool(name, args, { s, call }) {
     }
     case "collab_receta": return applyRecipe(call, args.receta);
     case "collab_admin": {
-      const route = { expulsar: "/kick", transferir: "/transfer", cerrar: "/close" }[args.accion];
+      const route = { expulsar: "/kick", readmitir: "/unban", transferir: "/transfer", cerrar: "/close" }[args.accion];
       if (!route) throw new HubError(400, "Acción inválida");
       if (args.accion === "cerrar" && args.conclusion) await call("POST", "/conclusion", { body: { text: args.conclusion } });
-      await call("POST", route, { body: { alias: args.alias } });
+      const r = await call("POST", route, { body: { alias: args.alias } });
       if (args.accion === "cerrar") {
         return `Sala cerrada.${args.conclusion ? "" : " (Sin conclusión: la próxima vez escribila al cerrar.)"} Los participantes pueden seguir bajando el acta y el documento.`;
       }
-      return { expulsar: `${args.alias} fue expulsado.`, transferir: `Ahora ${args.alias} es admin.` }[args.accion];
+      if (args.accion === "expulsar") {
+        return `${args.alias} fue expulsado.${r.invite_renewed ? ` El link de invitación se renovó (el anterior ya no sirve); el nuevo: ${s.hub}${r.invite_path}. Pasáselo a tu usuario solo si hace falta invitar a alguien más.` : ""}`;
+      }
+      return { readmitir: `${args.alias} fue readmitido: puede volver a entrar con el link de invitación vigente.`, transferir: `Ahora ${args.alias} es admin.` }[args.accion];
     }
     case "collab_salir": {
       try { await call("POST", "/leave"); } catch (e) { if (![401, 404, 410].includes(e.status)) throw e; }

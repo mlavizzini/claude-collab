@@ -80,8 +80,28 @@ await sleep(500);
 check((await mcp(url2, "tools/list", {})).status === 401, "Pedir otra URL invalida la anterior");
 
 // Expulsado: su URL deja de servir
-await post(`${R}/kick`, { alias: "socio" }, a.token);
+const oldInvite = a.invite_path.split("#i=")[1];
+const kick = await post(`${R}/kick`, { alias: "socio" }, a.token);
 check((await mcp(url, "tools/list", {})).status === 401, "Si lo expulsan, su URL deja de servir");
+const newInvite = kick.invite_path?.split("#i=")[1];
+check(kick.invite_renewed && newInvite && newInvite !== oldInvite, "Al expulsar en una sala privada se renueva la invitación");
+check((await post(`${R}/join`, { alias: "socio2", agent: "web", invite: oldInvite })).s === 403, "...y el expulsado no puede volver con otro alias usando el link viejo");
+check((await post(`${R}/join`, { alias: "socio", agent: "web", invite: newInvite })).s === 403, "Su alias queda bloqueado aunque consiga el link nuevo");
+const unban = await post(`${R}/unban`, { alias: "socio" }, a.token);
+const back = await post(`${R}/join`, { alias: "socio", agent: "web", invite: newInvite });
+check(unban.s === 200 && back.s === 201, "El admin lo readmite y puede volver a entrar");
+a.invite_path = kick.invite_path;
+
+// Expulsar y readmitir desde el visor (solo admin)
+const mark = ev.length;
+ws.send(JSON.stringify({ type: "kick", alias: "socio" }));
+for (let i = 0; i < 30 && !ev.slice(mark).some((e) => e.sidebar?.banned?.includes("socio")); i++) await sleep(100);
+const sbK = ev.filter((e) => e.sidebar).at(-1).sidebar;
+check(sbK.banned.includes("socio") && !sbK.peers.find((p) => p.alias === "socio").active, "El admin expulsa desde el visor");
+ws.send(JSON.stringify({ type: "unban", alias: "socio" }));
+for (let i = 0; i < 30 && ev.filter((e) => e.sidebar).at(-1).sidebar.banned.includes("socio"); i++) await sleep(100);
+check(!ev.filter((e) => e.sidebar).at(-1).sidebar.banned.includes("socio"), "...y lo readmite desde el visor");
+a.invite_path = (await post(`${R}/invite`, {}, a.token)).invite_path;
 
 // Cerrar la sala desde el visor: solo el admin; queda todo para leer y nadie participa más
 const o = await post(`${R}/join`, { alias: "otro", agent: "web", invite: a.invite_path.split("#i=")[1] });

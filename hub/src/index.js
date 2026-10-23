@@ -356,6 +356,7 @@ export class Room extends DurableObject {
       proposals: s.proposals.filter((p) => p.status === "pendiente"),
       peers: Object.values(s.members).map((m) => this.publicMember(m)),
       online: this.presence(),
+      banned: s.banned,
     };
   }
 
@@ -447,6 +448,42 @@ export class Room extends DurableObject {
     const token = randomToken();
     s.tokens[token] = alias;
     return token;
+  }
+
+  // Expulsar: bloquea el alias, revoca todos sus accesos y, si la sala es privada, renueva la
+  // invitación (si no, el expulsado podría volver con otro alias usando el link viejo).
+  kick(alias, by) {
+    const s = this.state;
+    const target = s.members[alias];
+    if (!target?.active) return { status: 404, error: "No hay nadie activo con ese alias" };
+    if (target.alias === by) return { status: 400, error: "No podés expulsarte a vos mismo" };
+    target.active = false;
+    if (!s.banned.includes(alias)) s.banned.push(alias);
+    this.revoke(alias);
+    this.closeSockets(alias, "Fuiste expulsado de la sala.");
+    this.closeAgentSockets(alias);
+    if (s.visibility === "privada") s.invite = randomToken(12);
+    this.system(`${alias} fue expulsado por el admin.${s.visibility === "privada" ? " El link de invitación se renovó: el anterior ya no sirve." : ""}`);
+    this.syncDirectory();
+    return null;
+  }
+
+  // Readmitir: saca el alias de la lista de bloqueados; vuelve a entrar con una invitación vigente.
+  unban(alias, by) {
+    const s = this.state;
+    if (!s.banned.includes(alias)) return { status: 404, error: "Ese alias no está bloqueado" };
+    s.banned = s.banned.filter((a) => a !== alias);
+    this.system(`${by} readmitió a ${alias}: puede volver a entrar con el link de invitación vigente.`);
+    return null;
+  }
+
+  closeAgentSockets(alias) {
+    for (const ws of this.ctx.getWebSockets()) {
+      const att = ws.deserializeAttachment();
+      if (att?.alias === alias && att.kind === "agent") {
+        try { ws.send(JSON.stringify({ type: "error", status: 401, error: "Fuiste expulsado de la sala" })); ws.close(4001, "expulsado"); } catch {}
+      }
+    }
   }
 
   revoke(alias) {
@@ -545,6 +582,14 @@ export class Room extends DurableObject {
     if (att.kind === "agent") return; // la espera de un agente no actúa como visor
 
     if (await handleViewerMessage(this, ws, att, msg)) return;
+
+    if (msg.type === "kick" || msg.type === "unban") {
+      if (att.alias !== s.admin) return ws.send(JSON.stringify({ type: "error", error: "Solo el admin puede expulsar o readmitir" }));
+      const r = msg.type === "kick" ? this.kick(String(msg.alias || ""), att.alias) : this.unban(String(msg.alias || ""), att.alias);
+      if (r) return ws.send(JSON.stringify({ type: "error", error: r.error }));
+      await this.save();
+      return this.changed();
+    }
 
     if (msg.type === "closeroom") {
       if (att.alias !== s.admin) return ws.send(JSON.stringify({ type: "error", error: "Solo el admin cierra la sala" }));
@@ -1080,15 +1125,16 @@ export class Room extends DurableObject {
     }
 
     if (path === "/kick" && method === "POST") {
-      const target = s.members[String(body.alias || "")];
-      if (!target?.active) return err(404, "No hay nadie activo con ese alias");
-      if (target.alias === me.alias) return err(400, "No podés expulsarte a vos mismo");
-      target.active = false;
-      s.banned.push(target.alias);
-      this.revoke(target.alias);
-      this.closeSockets(target.alias, "Fuiste expulsado de la sala.");
-      this.system(`${target.alias} fue expulsado por el admin.`);
-      this.syncDirectory();
+      const r = this.kick(String(body.alias || ""), me.alias);
+      if (r) return err(r.status, r.error);
+      await this.save();
+      this.changed();
+      return json({ ok: true, invite_renewed: s.visibility === "privada", invite_path: this.invitePath() });
+    }
+
+    if (path === "/unban" && method === "POST") {
+      const r = this.unban(String(body.alias || ""), me.alias);
+      if (r) return err(r.status, r.error);
       await this.save();
       this.changed();
       return json({ ok: true });
