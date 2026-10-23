@@ -50,6 +50,7 @@ Primera versión completa. Falta la prueba piloto real (dos máquinas, dos cuent
 - Límite por IP: en Cloudflare es aproximado (una vez cortó en el pedido 84, otra no cortó en 150). La prueba lo hace con vistas previas (no crea salas) y contra un hub remoto lo reporta como aviso.
 
 ### Pendientes conocidos
+- Presencia en vivo: mostrar en el visor y en la página de la sala quién está conectado ahora.
 - Archivos sin R2: guardarlos en la base SQLite de cada sala (pedazos de hasta 2 MB) con vencimiento.
 - Primer uso con solo pegar el link: la invitación devuelve a los agentes los comandos de instalación del repo oficial; el agente pide ok, instala, se reinicia y entra solo.
 - Archivos de R2 temporales: hoy no vencen y el espacio crece. Vencimiento automático (ciclo de vida del bucket, al cerrar la sala o por inactividad) y que cada agente baje los que le sirvan antes de que venzan.
