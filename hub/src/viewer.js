@@ -229,7 +229,13 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
     $("dot").className = "dot " + state; $("conn").textContent = text;
     $("send").disabled = state !== "on" || !$("text").value.trim();
   }
-  function banner(text) { const b = $("banner"); b.textContent = text || ""; b.style.display = text ? "block" : "none"; }
+  // Con ms, el cartel se oculta solo (si nadie lo reemplazó antes).
+  let bannerTimer;
+  function banner(text, ms) {
+    const b = $("banner"); clearTimeout(bannerTimer);
+    b.textContent = text || ""; b.style.display = text ? "block" : "none";
+    if (text && ms) bannerTimer = setTimeout(() => { if (b.textContent === text) banner(""); }, ms);
+  }
 
   function nearBottom() { return chat.scrollHeight - chat.scrollTop - chat.clientHeight < 120; }
 
@@ -437,7 +443,7 @@ textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset:
       }
       if (data.type === "invite") {
         const link = location.origin + data.path;
-        const done = () => banner("Link de invitación copiado. " + (data.visibility === "privada" ? "Es privado: pasáselo solo a quien quieras invitar." : "La sala es pública.") + " " + link);
+        const done = () => banner("Link de invitación copiado. " + (data.visibility === "privada" ? "Es privado: pasáselo solo a quien quieras invitar." : "La sala es pública.") + " " + link, 8000);
         (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(done, () => banner("Link de invitación: " + link));
         return;
       }
