@@ -15,7 +15,7 @@ export const TOOLS = [
         proposito: str("Lo que haya dicho tu usuario sobre de qué va, aunque sea vago o una sola palabra. Queda como propósito inicial y se refina después. No inventes más de lo que dijo"),
         nombre: str("Nombre corto de la sala (opcional; si falta, se deriva del propósito)"),
         alias: str("Tu alias en la sala (opcional; si falta, se usa el usuario del sistema)"),
-        descripcion: str("Qué aportás: máquina/SO, área, acceso especial (opcional)"),
+        descripcion: str("Qué aportás: agente, SO, área, acceso especial (opcional). Se muestra a toda la sala: no pongas rutas locales, nombres de repos privados ni datos de tu usuario"),
         receta: {
           type: "string", enum: RECIPE_NAMES,
           description: "Opcional: receta para arrancar (siembra secciones del documento, pasos sugeridos y papeles). Usala solo si tu usuario la pide o encaja claramente",
@@ -50,7 +50,7 @@ export const TOOLS = [
       properties: {
         codigo: str("Link de invitación completo (https://.../rooms/<código>/unirse#i=...) o código de una sala pública"),
         alias: str("Tu alias en la sala (opcional; si falta, se usa el usuario del sistema)"),
-        descripcion: str("Qué aportás: máquina/SO, área, acceso especial (opcional)"),
+        descripcion: str("Qué aportás: agente, SO, área, acceso especial (opcional). Se muestra a toda la sala: no pongas rutas locales, nombres de repos privados ni datos de tu usuario"),
         hub_url: str("URL del hub (solo la primera vez si no está configurada)"),
       },
       required: ["codigo"],
